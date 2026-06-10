@@ -1,13 +1,56 @@
 import os
-import dotenv
+from pathlib import Path
 
 
-dotenv.load_dotenv(Override = True)
+def load_env_file(path: str | os.PathLike[str] = ".env", override: bool = True) -> None:
+    """Load simple KEY=VALUE pairs from a .env file without external dependencies."""
+    env_path = Path(path)
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        value = value.replace("\\n", "\n")
+
+        if override or key not in os.environ:
+            os.environ[key] = value
+
+
+load_env_file(override=True)
+
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-GMAIL_EMAIL = os.getenv("GMAIL_EMAIL")
+EMAIL_SENDER = os.getenv("EMAIL_SENDER") or os.getenv("GMAIL_EMAIL")
+GMAIL_EMAIL = EMAIL_SENDER
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 
-SMTP_SERVER = os.getenv("SMTP_SERVER")
-SMTP_PORT = os.getenv("SMTP_PORT")
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+
+EMAILS_FILE = os.getenv("EMAILS_FILE", "emails.txt")
+EMAIL_SUBJECT = os.getenv("EMAIL_SUBJECT", "Коммерческое предложение")
+EMAIL_TEXT = os.getenv("EMAIL_TEXT", "")
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TELEGRAM_TEST_DELAY_SECONDS = float(os.getenv("TELEGRAM_TEST_DELAY_SECONDS", "0"))
+
+
+def read_recipients(path: str | os.PathLike[str] = EMAILS_FILE) -> list[str]:
+    """Read recipients from a txt file; one email address per line."""
+    recipients_path = Path(path)
+    if not recipients_path.exists():
+        raise FileNotFoundError(f"Recipients file not found: {recipients_path}")
+
+    return [
+        line.strip()
+        for line in recipients_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]

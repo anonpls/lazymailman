@@ -1,9 +1,17 @@
-import requests
+import json
+import urllib.error
+import urllib.request
 
-from main import OPENROUTER_API_KEY
+import config
+
+
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
 def rewrite_email(template_text: str) -> str:
+    if not config.OPENROUTER_API_KEY:
+        raise ValueError("OPENROUTER_API_KEY must be set in .env")
+
     prompt = f"""
 Перепиши письмо так, чтобы оно отличалось от исходного текстом и формулировками.
 
@@ -18,24 +26,33 @@ def rewrite_email(template_text: str) -> str:
 {template_text}
 """
 
-    response = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json"
-        },
-        json={
+    payload = json.dumps(
+        {
             "model": "openai/gpt-4.1-mini",
             "messages": [
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": prompt,
                 }
-            ]
+            ],
+        }
+    ).encode("utf-8")
+
+    request = urllib.request.Request(
+        OPENROUTER_URL,
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {config.OPENROUTER_API_KEY}",
+            "Content-Type": "application/json",
         },
-        timeout=60
+        method="POST",
     )
 
-    response.raise_for_status()
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            response_data = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        details = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"OpenRouter API request failed: {details}") from error
 
-    return response.json()["choices"][0]["message"]["content"]
+    return response_data["choices"][0]["message"]["content"]
