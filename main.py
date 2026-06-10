@@ -1,38 +1,60 @@
-import smtplib
-import requests
-import time
+import argparse
+import importlib.util
+from pathlib import Path
+
 import config
 from postman import run_mailing
 
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+
+TG_TEST_SCRIPT = Path(__file__).parent / "tests" / "tg-test.py"
 
 
-OPENROUTER_API_KEY = config.OPENROUTER_API_KEY
+def load_tg_test_module():
+    spec = importlib.util.spec_from_file_location("tg_test", TG_TEST_SCRIPT)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load Telegram test module: {TG_TEST_SCRIPT}")
 
-GMAIL_EMAIL = config.GMAIL_EMAIL
-GMAIL_APP_PASSWORD = config.GMAIL_APP_PASSWORD
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
-SMTP_SERVER = config.SMTP_SERVER
-SMTP_PORT = config.SMTP_PORT
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Lazy Mailman mailing runner")
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="simulate mailing by sending preview messages to Telegram instead of email",
+    )
+    parser.add_argument(
+        "--emails-file",
+        default=config.EMAILS_FILE,
+        help="path to txt file with one recipient email per line",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    recipients = config.read_recipients(args.emails_file)
+
+    if args.test:
+        tg_test = load_tg_test_module()
+        tg_test.run_test_mailing(
+            recipients=recipients,
+            sender=config.EMAIL_SENDER,
+            subject=config.EMAIL_SUBJECT,
+            body=config.EMAIL_TEXT,
+        )
+        return
+
+    run_mailing(
+        recipients=recipients,
+        subject=config.EMAIL_SUBJECT,
+        template=config.EMAIL_TEXT,
+        sender=config.EMAIL_SENDER,
+    )
+
 
 if __name__ == "__main__":
-    emails = [
-        "user1@example.com",
-        "user2@example.com",
-        "user3@example.com"
-    ]
-
-    subject = "Коммерческое предложение"
-
-    template = """
-Здравствуйте!
-
-Хотим предложить вам сотрудничество в сфере разработки программного обеспечения.
-
-Если вам интересно обсудить детали, ответьте на это письмо.
-
-С уважением.
-"""
-
-    run_mailing(emails, subject, template)
+    main()
