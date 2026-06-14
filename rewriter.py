@@ -28,7 +28,7 @@ def rewrite_email(template_text: str) -> str:
 
     payload = json.dumps(
         {
-            "model": "openai/gpt-4.1-mini",
+            "model": "openai/gpt-oss-120b:free",
             "messages": [
                 {
                     "role": "user",
