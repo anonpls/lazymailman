@@ -4,7 +4,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -50,6 +50,7 @@ def run_test_mailing(
     bot_token: str = config.TELEGRAM_BOT_TOKEN,
     chat_id: str = config.TELEGRAM_CHAT_ID,
     delay_seconds: float = config.TELEGRAM_TEST_DELAY_SECONDS,
+    rewrite_body: Callable[[str, int], str] | None = None,
 ) -> None:
     if not sender:
         raise ValueError("EMAIL_SENDER or GMAIL_EMAIL must be set in .env")
@@ -60,8 +61,9 @@ def run_test_mailing(
     if not chat_id:
         raise ValueError("TELEGRAM_CHAT_ID must be set in .env")
 
-    for recipient in recipients:
-        message = build_test_message(sender, recipient, subject, body)
+    for iteration, recipient in enumerate(recipients, start=1):
+        message_body = rewrite_body(body, iteration) if rewrite_body else body
+        message = build_test_message(sender, recipient, subject, message_body)
         send_telegram_message(bot_token, chat_id, message)
         print(f"Sent Telegram test message for {sender} -> {recipient}")
         if delay_seconds > 0:
@@ -75,12 +77,23 @@ def parse_args() -> argparse.Namespace:
         default=config.EMAILS_FILE,
         help="path to txt file with one recipient email per line",
     )
+    parser.add_argument(
+        "--rewriter",
+        action="store_true",
+        help="rewrite the email body through OpenRouter separately for every recipient",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    run_test_mailing(config.read_recipients(args.emails_file))
+    rewrite_body = None
+    if args.rewriter:
+        from rewriter import rewrite_email
+
+        rewrite_body = rewrite_email
+
+    run_test_mailing(config.read_recipients(args.emails_file), rewrite_body=rewrite_body)
 
 
 if __name__ == "__main__":
