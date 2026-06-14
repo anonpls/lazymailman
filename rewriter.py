@@ -8,9 +8,16 @@ import config
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
-def rewrite_email(template_text: str) -> str:
+def rewrite_email(template_text: str, iteration: int | None = None) -> str:
     if not config.OPENROUTER_API_KEY:
         raise ValueError("OPENROUTER_API_KEY must be set in .env")
+
+    iteration_hint = (
+        f"- это итерация рассылки №{iteration}. Используй это только как источник "
+        "вариативности, не добавляй номер итерации в письмо."
+        if iteration is not None
+        else ""
+    )
 
     prompt = f"""
 Перепиши письмо так, чтобы оно отличалось от исходного текстом и формулировками.
@@ -19,7 +26,10 @@ def rewrite_email(template_text: str) -> str:
 - сохранить смысл;
 - сохранить стиль;
 - сохранить цель письма;
-- не менять факты, ссылки и контакты.
+- не менять факты, ссылки и контакты;
+- не повторять формулировки из предыдущих вариантов;
+- каждый новый результат должен заметно отличаться от других итераций рассылки.
+{iteration_hint}
 
 Текст:
 

@@ -4,6 +4,7 @@ from pathlib import Path
 
 import config
 from postman import run_mailing
+from rewriter import rewrite_email
 
 
 TG_TEST_SCRIPT = Path(__file__).parent / "tests" / "tg-test.py"
@@ -31,12 +32,19 @@ def parse_args() -> argparse.Namespace:
         default=config.EMAILS_FILE,
         help="path to txt file with one recipient email per line",
     )
+    parser.add_argument(
+        "--rewriter",
+        action="store_true",
+        help="rewrite the email body through OpenRouter separately for every recipient",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     recipients = config.read_recipients(args.emails_file)
+
+    rewrite_body = rewrite_email if args.rewriter else None
 
     if args.test:
         tg_test = load_tg_test_module()
@@ -45,6 +53,7 @@ def main() -> None:
             sender=config.EMAIL_SENDER,
             subject=config.EMAIL_SUBJECT,
             body=config.EMAIL_TEXT,
+            rewrite_body=rewrite_body,
         )
         return
 
@@ -53,6 +62,7 @@ def main() -> None:
         subject=config.EMAIL_SUBJECT,
         template=config.EMAIL_TEXT,
         sender=config.EMAIL_SENDER,
+        rewrite_body=rewrite_body,
     )
 
 
