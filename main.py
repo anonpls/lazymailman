@@ -37,6 +37,22 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="rewrite the email body through OpenRouter separately for every recipient",
     )
+    parser.add_argument(
+        "--send-delay",
+        type=float,
+        default=config.EMAIL_SEND_DELAY_SECONDS,
+        help="pause between real email sends in seconds",
+    )
+    parser.add_argument(
+        "--fallback-sender",
+        default=config.FALLBACK_EMAIL_SENDER,
+        help="fallback sender email used when the primary SMTP send fails",
+    )
+    parser.add_argument(
+        "--log-file",
+        default=config.EMAIL_SEND_LOG_FILE,
+        help="path to the mailing result log file",
+    )
     return parser.parse_args()
 
 
@@ -63,6 +79,9 @@ def main() -> None:
         template=config.EMAIL_TEXT,
         sender=config.EMAIL_SENDER,
         rewrite_body=rewrite_body,
+        delay_seconds=args.send_delay,
+        fallback_sender=args.fallback_sender,
+        log_file=args.log_file,
     )
 
 
