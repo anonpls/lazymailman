@@ -3,9 +3,8 @@ Description=Lazy Mailman - Email Mailing Service
 After=network.target
 
 [Service]
-Type=simple
-User=mailman
-Group=mailman
+Type=idle
+User=root
 WorkingDirectory=/opt/lazymailman
 
 # Загружаем переменные окружения из .env файла
