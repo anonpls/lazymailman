@@ -1,32 +1,14 @@
 [Unit]
-Description=Lazy Mailman - Email Mailing Service
+Description=lazymailman
 After=network.target
 
 [Service]
-Type=idle
+Type=simple
+Restart=always
+RestartSec=3
 User=root
 WorkingDirectory=/opt/lazymailman
-
-# Загружаем переменные окружения из .env файла
-EnvironmentFile=/opt/lazymailman/.env
-
-# Основная команда запуска программы
-ExecStart=/opt/Channel_Promo_Bot/venv/bin/python /opt/lazymailman/main.py --send-delay 600 --rewriter --log-file /opt/lazymailman/logs/mailing.log
-
-# Настройки перезагрузки при сбое
-Restart=on-failure
-RestartSec=10
-
-# Логирование
-StandardOutput=append:/var/log/lazymailman/mailman.log
-StandardError=append:/var/log/lazymailman/mailman.log
-
-# Таймауты
-TimeoutStartSec=30
-TimeoutStopSec=10
-
-# Возможность вывести из under the control systemd-managed cgroups
-KillMode=process
+ExecStart=/opt/Channel_Promo_Bot/venv/bin/python /opt/lazymailman/main.py --send-delay 600 --rewriter --log-file logs/mailing.log
 
 [Install]
 WantedBy=multi-user.target
