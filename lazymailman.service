@@ -11,7 +11,7 @@ WorkingDirectory=/opt/lazymailman
 EnvironmentFile=/opt/lazymailman/.env
 
 # Основная команда запуска программы
-ExecStart=/usr/bin/python3 /opt/lazymailman/main.py --send-delay 600 --rewriter --log-file /opt/lazymailman/logs/mailing.log
+ExecStart=/opt/Channel_Promo_Bot/venv/bin/python /opt/lazymailman/main.py --send-delay 600 --rewriter --log-file /opt/lazymailman/logs/mailing.log
 
 # Настройки перезагрузки при сбое
 Restart=on-failure
