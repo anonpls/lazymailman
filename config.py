@@ -58,3 +58,18 @@ def read_recipients(path: str | os.PathLike[str] = EMAILS_FILE) -> list[str]:
         for line in recipients_path.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
+
+
+def remove_recipient(email: str, path: str | os.PathLike[str] = EMAILS_FILE) -> None:
+    """Remove a recipient email from the recipients file."""
+    recipients_path = Path(path)
+    if not recipients_path.exists():
+        return
+
+    recipients = read_recipients(recipients_path)
+    remaining_recipients = [r for r in recipients if r != email]
+
+    recipients_path.write_text(
+        "\n".join(remaining_recipients) + ("\n" if remaining_recipients else ""),
+        encoding="utf-8"
+    )

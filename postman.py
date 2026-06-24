@@ -5,6 +5,7 @@ from pathlib import Path
 
 import config
 from sender import EmailSendResult, send_email
+from config import remove_recipient
 
 
 SPAM_CHECK_STATUS = "not_supported_by_smtp"
@@ -68,6 +69,7 @@ def run_mailing(
     fallback_sender: str | None = config.FALLBACK_EMAIL_SENDER,
     fallback_password: str | None = config.FALLBACK_GMAIL_APP_PASSWORD,
     log_file: str = config.EMAIL_SEND_LOG_FILE,
+    emails_file: str = config.EMAILS_FILE,
 ) -> None:
     """Send the configured email body to all recipients."""
     if not template:
@@ -85,6 +87,7 @@ def run_mailing(
         if result.success:
             log_send_result(logger, result, attempt="primary", final=True)
             print(f"Sent email from {sender} to {recipient}")
+            remove_recipient(recipient, emails_file)
         else:
             can_use_fallback = bool(fallback_sender and fallback_sender != sender)
             log_send_result(logger, result, attempt="primary", final=not can_use_fallback)
@@ -101,6 +104,7 @@ def run_mailing(
                 log_send_result(logger, fallback_result, attempt="fallback", final=True)
                 if fallback_result.success:
                     print(f"Sent email from fallback {fallback_sender} to {recipient}")
+                    remove_recipient(recipient, emails_file)
                 else:
                     print(
                         "Failed to send email from fallback "

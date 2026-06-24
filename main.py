@@ -82,6 +82,7 @@ def main() -> None:
         delay_seconds=args.send_delay,
         fallback_sender=args.fallback_sender,
         log_file=args.log_file,
+        emails_file=args.emails_file,
     )
 
 

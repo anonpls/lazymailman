@@ -1,0 +1,33 @@
+[Unit]
+Description=Lazy Mailman - Email Mailing Service
+After=network.target
+
+[Service]
+Type=simple
+User=mailman
+Group=mailman
+WorkingDirectory=/opt/lazymailman
+
+# Загружаем переменные окружения из .env файла
+EnvironmentFile=/opt/lazymailman/.env
+
+# Основная команда запуска программы
+ExecStart=/usr/bin/python3 /opt/lazymailman/main.py
+
+# Настройки перезагрузки при сбое
+Restart=on-failure
+RestartSec=10
+
+# Логирование
+StandardOutput=append:/var/log/lazymailman/mailman.log
+StandardError=append:/var/log/lazymailman/mailman.log
+
+# Таймауты
+TimeoutStartSec=30
+TimeoutStopSec=10
+
+# Возможность вывести из under the control systemd-managed cgroups
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
