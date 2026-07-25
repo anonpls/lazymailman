@@ -59,6 +59,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     recipients = config.read_recipients(args.emails_file)
+    email_body = config.read_email_body()
 
     rewrite_body = rewrite_email if args.rewriter else None
 
@@ -68,7 +69,7 @@ def main() -> None:
             recipients=recipients,
             sender=config.EMAIL_SENDER,
             subject=config.EMAIL_SUBJECT,
-            body=config.EMAIL_TEXT,
+            body=email_body,
             rewrite_body=rewrite_body,
         )
         return
@@ -76,7 +77,7 @@ def main() -> None:
     run_mailing(
         recipients=recipients,
         subject=config.EMAIL_SUBJECT,
-        template=config.EMAIL_TEXT,
+        template=email_body,
         sender=config.EMAIL_SENDER,
         rewrite_body=rewrite_body,
         delay_seconds=args.send_delay,

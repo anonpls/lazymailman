@@ -1,5 +1,6 @@
 import logging
 import time
+from datetime import datetime, time as datetime_time, timedelta
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
@@ -9,6 +10,67 @@ from config import remove_recipient
 
 
 SPAM_CHECK_STATUS = "not_supported_by_smtp"
+TIME_FORMAT = "%H:%M"
+
+
+def parse_active_time(value: str | None, variable_name: str) -> datetime_time | None:
+    """Parse HH:MM mailing activity boundary from .env."""
+    if not value:
+        return None
+
+    try:
+        return datetime.strptime(value, TIME_FORMAT).time()
+    except ValueError as exc:
+        raise ValueError(f"{variable_name} must use HH:MM format") from exc
+
+
+def is_within_active_period(
+    current_time: datetime_time,
+    active_from: datetime_time | None,
+    active_to: datetime_time | None,
+) -> bool:
+    """Return whether current local system time is inside the configured mailing window."""
+    if active_from is None and active_to is None:
+        return True
+    if active_from is None:
+        return current_time <= active_to
+    if active_to is None:
+        return current_time >= active_from
+    if active_from <= active_to:
+        return active_from <= current_time <= active_to
+    return current_time >= active_from or current_time <= active_to
+
+
+def seconds_until_active_period(
+    now: datetime,
+    active_from: datetime_time | None,
+    active_to: datetime_time | None,
+) -> float:
+    """Return seconds until the next allowed send time using local system time."""
+    if is_within_active_period(now.time(), active_from, active_to):
+        return 0
+    if active_from is None:
+        next_start = datetime.combine(now.date() + timedelta(days=1), datetime_time.min)
+    else:
+        next_start = datetime.combine(now.date(), active_from)
+        if next_start <= now:
+            next_start += timedelta(days=1)
+    return (next_start - now).total_seconds()
+
+
+def wait_for_active_period(
+    active_from: datetime_time | None,
+    active_to: datetime_time | None,
+    sleep: Callable[[float], None] = time.sleep,
+) -> None:
+    """Pause mailing until local system time enters the configured activity window."""
+    if active_from is None and active_to is None:
+        return
+
+    wait_seconds = seconds_until_active_period(datetime.now(), active_from, active_to)
+    if wait_seconds > 0:
+        print(f"Mailing is outside the active period; waiting {wait_seconds:.0f} seconds")
+        sleep(wait_seconds)
 
 
 def configure_mailing_logger(log_file: str = config.EMAIL_SEND_LOG_FILE) -> logging.Logger:
@@ -70,6 +132,8 @@ def run_mailing(
     fallback_password: str | None = config.FALLBACK_GMAIL_APP_PASSWORD,
     log_file: str = config.EMAIL_SEND_LOG_FILE,
     emails_file: str = config.EMAILS_FILE,
+    active_from: str | None = config.MAILING_ACTIVE_FROM,
+    active_to: str | None = config.MAILING_ACTIVE_TO,
 ) -> None:
     """Send the configured email body to all recipients."""
     if not template:
@@ -77,10 +141,14 @@ def run_mailing(
     if delay_seconds < 0:
         raise ValueError("EMAIL_SEND_DELAY_SECONDS cannot be negative")
 
+    active_from_time = parse_active_time(active_from, "MAILING_ACTIVE_FROM")
+    active_to_time = parse_active_time(active_to, "MAILING_ACTIVE_TO")
+
     logger = configure_mailing_logger(log_file)
     recipient_list = list(recipients)
 
     for iteration, recipient in enumerate(recipient_list, start=1):
+        wait_for_active_period(active_from_time, active_to_time)
         body = rewrite_body(template, iteration) if rewrite_body else template
         result = send_email(recipient=recipient, subject=subject, body=body, sender=sender)
 

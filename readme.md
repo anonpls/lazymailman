@@ -5,9 +5,10 @@ Lazy Mailman — небольшой Python-инструмент для расс�
 ## Возможности
 
 - чтение списка получателей из TXT-файла;
-- настройка отправителя, темы и текста письма через переменные окружения или `.env`;
+- настройка отправителя, темы, файла текста письма и окна активности рассылки через переменные окружения или `.env`;
 - отправка писем через SMTP, по умолчанию через Gmail SMTP;
 - настраиваемая пауза между реальными email-отправками;
+- ограничение реальной email-рассылки системным временем активности;
 - логирование успешных и неуспешных SMTP-отправок в файл;
 - fallback-отправитель для повторной попытки, если отправка с основного адреса не удалась;
 - тестовый режим с отправкой превью сообщений в Telegram;
@@ -38,7 +39,9 @@ Lazy Mailman — небольшой Python-инструмент для расс�
 EMAIL_SENDER=sender@example.com
 GMAIL_APP_PASSWORD=your-gmail-app-password
 EMAIL_SUBJECT=Коммерческое предложение
-EMAIL_TEXT=Здравствуйте! Это текст письма.
+EMAIL_BODY_FILE=email.txt
+MAILING_ACTIVE_FROM=08:00
+MAILING_ACTIVE_TO=23:00
 ```
 
 Пример с дополнительными настройками:
@@ -50,7 +53,9 @@ SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 EMAILS_FILE=emails.txt
 EMAIL_SUBJECT=Коммерческое предложение
-EMAIL_TEXT=Здравствуйте! Это текст письма.\nВторая строка письма.
+EMAIL_BODY_FILE=email.txt
+MAILING_ACTIVE_FROM=08:00
+MAILING_ACTIVE_TO=23:00
 
 TELEGRAM_BOT_TOKEN=123456:telegram-bot-token
 TELEGRAM_CHAT_ID=123456789
@@ -74,7 +79,10 @@ FALLBACK_GMAIL_APP_PASSWORD=your-fallback-gmail-app-password
 | `SMTP_PORT` | Нет | `587` | SMTP-порт. |
 | `EMAILS_FILE` | Нет | `emails.txt` | Путь к файлу со списком получателей. |
 | `EMAIL_SUBJECT` | Нет | `Коммерческое предложение` | Тема письма. |
-| `EMAIL_TEXT` | Да | пустая строка | Текст письма. Для переносов строк используйте `\n`. |
+| `EMAIL_BODY_FILE` | Нет | — | Путь к текстовому файлу с телом письма. Если задан, имеет приоритет над `EMAIL_TEXT`. |
+| `EMAIL_TEXT` | Да, если не задан `EMAIL_BODY_FILE` | пустая строка | Текст письма из `.env`. Оставлен как fallback; для реального письма лучше использовать `EMAIL_BODY_FILE`. |
+| `MAILING_ACTIVE_FROM` | Нет | — | Начало периода реальной рассылки по системному времени в формате `HH:MM`, например `08:00`. |
+| `MAILING_ACTIVE_TO` | Нет | — | Конец периода реальной рассылки по системному времени в формате `HH:MM`, например `23:00`. |
 | `EMAIL_SEND_DELAY_SECONDS` | Нет | `0` | Пауза между реальными email-отправками в секундах. |
 | `EMAIL_SEND_LOG_FILE` | Нет | `mailing.log` | Файл для логирования результата каждой SMTP-отправки. |
 | `FALLBACK_EMAIL_SENDER` | Нет | — | Запасной email-отправитель для повторной попытки, если основной SMTP-send завершился ошибкой. |
@@ -83,6 +91,24 @@ FALLBACK_GMAIL_APP_PASSWORD=your-fallback-gmail-app-password
 | `TELEGRAM_CHAT_ID` | Да для тестового режима | — | ID чата, куда отправлять тестовые сообщения. |
 | `TELEGRAM_TEST_DELAY_SECONDS` | Нет | `0` | Пауза между тестовыми сообщениями в секундах. |
 | `OPENROUTER_API_KEY` | Да для `rewriter.py` | — | Ключ OpenRouter API. |
+
+## Файл с текстом письма
+
+Рекомендуемый способ задать тело письма — положить текст в отдельный файл и указать путь через `EMAIL_BODY_FILE`.
+
+```env
+EMAIL_BODY_FILE=email.txt
+```
+
+Пример `email.txt`:
+
+```txt
+Здравствуйте!
+
+Хотим предложить вам сотрудничество.
+```
+
+Если `EMAIL_BODY_FILE` не задан, проект использует старую переменную `EMAIL_TEXT` из `.env`.
 
 ## Файл получателей
 

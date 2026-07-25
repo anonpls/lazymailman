@@ -39,7 +39,10 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 
 EMAILS_FILE = os.getenv("EMAILS_FILE", "emails.txt")
 EMAIL_SUBJECT = os.getenv("EMAIL_SUBJECT", "Коммерческое предложение")
+EMAIL_BODY_FILE = os.getenv("EMAIL_BODY_FILE")
 EMAIL_TEXT = os.getenv("EMAIL_TEXT", "")
+MAILING_ACTIVE_FROM = os.getenv("MAILING_ACTIVE_FROM")
+MAILING_ACTIVE_TO = os.getenv("MAILING_ACTIVE_TO")
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
@@ -74,3 +77,15 @@ def remove_recipient(email: str, path: str | os.PathLike[str] = EMAILS_FILE) -> 
         "\n".join(remaining_recipients) + ("\n" if remaining_recipients else ""),
         encoding="utf-8"
     )
+
+
+def read_email_body(path: str | os.PathLike[str] | None = EMAIL_BODY_FILE) -> str:
+    """Read email body from a text file, falling back to EMAIL_TEXT."""
+    if not path:
+        return EMAIL_TEXT
+
+    body_path = Path(path)
+    if not body_path.exists():
+        raise FileNotFoundError(f"Email body file not found: {body_path}")
+
+    return body_path.read_text(encoding="utf-8")
