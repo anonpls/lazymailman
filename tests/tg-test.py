@@ -46,16 +46,18 @@ def run_test_mailing(
     recipients: Iterable[str],
     sender: str = config.EMAIL_SENDER,
     subject: str = config.EMAIL_SUBJECT,
-    body: str = config.EMAIL_TEXT,
+    body: str | None = None,
     bot_token: str = config.TELEGRAM_BOT_TOKEN,
     chat_id: str = config.TELEGRAM_CHAT_ID,
     delay_seconds: float = config.TELEGRAM_TEST_DELAY_SECONDS,
     rewrite_body: Callable[[str, int], str] | None = None,
 ) -> None:
+    body = config.read_email_body() if body is None else body
+
     if not sender:
         raise ValueError("EMAIL_SENDER or GMAIL_EMAIL must be set in .env")
     if not body:
-        raise ValueError("EMAIL_TEXT must be set in .env")
+        raise ValueError("EMAIL_BODY_FILE or EMAIL_TEXT must be set in .env")
     if not bot_token:
         raise ValueError("TELEGRAM_BOT_TOKEN must be set in .env")
     if not chat_id:
