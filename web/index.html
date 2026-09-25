@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Веб-интерфейс Lazy Mailman для подготовки email-рассылок." />
+    <title>Lazy Mailman — Новая рассылка</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#top" aria-label="Lazy Mailman">
+          <span class="brand-mark" aria-hidden="true">✦</span>
+          <span>lazy<span>mailman</span></span>
+        </a>
+        <nav aria-label="Основная навигация">
+          <a class="nav-item active" href="#compose"><span>✎</span> Новая рассылка</a>
+          <a class="nav-item" href="#recipients"><span>♙</span> Получатели <b id="sidebar-count">4</b></a>
+          <a class="nav-item" href="#templates"><span>▱</span> Шаблоны</a>
+          <a class="nav-item" href="#history"><span>◷</span> История</a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="mail-status"><i></i><span>SMTP подключён</span></div>
+          <a class="nav-item" href="#settings"><span>⚙</span> Настройки</a>
+          <p>v1.0.0 <span>•</span> Всё сохранено</p>
+        </div>
+      </aside>
+
+      <main id="top">
+        <header class="topbar">
+          <div class="breadcrumbs"><span>Рассылки</span><b>/</b><strong>Новая рассылка</strong></div>
+          <div class="top-actions">
+            <button class="icon-button" aria-label="Уведомления">♢<i></i></button>
+            <button class="account"><span>АМ</span><b>Анна М.</b><em>⌄</em></button>
+          </div>
+        </header>
+
+        <section class="page-heading">
+          <div>
+            <p class="eyebrow">НОВАЯ КАМПАНИЯ</p>
+            <h1>Создайте рассылку</h1>
+            <p class="subheading">Настройте письмо, выберите получателей — и мы позаботимся об остальном.</p>
+          </div>
+          <button class="draft-button" id="save-draft"><span>♡</span> Сохранить черновик</button>
+        </section>
+
+        <div class="workspace" id="compose">
+          <form class="composer-card" id="mail-form">
+            <div class="card-section" id="recipients">
+              <div class="section-heading"><span class="step">1</span><div><h2>Получатели</h2><p>Добавьте адреса, на которые отправим письмо.</p></div></div>
+              <label class="field-label" for="recipient-input">Кому</label>
+              <div class="recipient-box" id="recipient-box">
+                <div class="chips" id="recipient-chips"></div>
+                <input id="recipient-input" type="email" inputmode="email" placeholder="Введите email и нажмите Enter" aria-label="Добавить получателя" />
+              </div>
+              <div class="recipient-footer"><button type="button" class="text-button" id="import-button">↥ Импортировать из файла</button><span><b id="recipient-count">4</b> получателя</span></div>
+              <input class="visually-hidden" type="file" id="file-input" accept=".txt,.csv" />
+            </div>
+
+            <div class="card-section letter-section">
+              <div class="section-heading"><span class="step">2</span><div><h2>Письмо</h2><p>Составьте сообщение для вашей аудитории.</p></div></div>
+              <label class="field-label" for="subject">Тема письма</label>
+              <input class="subject-input" id="subject" value="Специальное предложение для вас" />
+              <div class="body-row"><label class="field-label" for="message">Текст письма</label><span id="character-count">0 символов</span></div>
+              <div class="editor">
+                <div class="toolbar" aria-label="Панель форматирования"><button type="button" data-wrap="**">B</button><button type="button" data-wrap="_"><i>I</i></button><button type="button">⌁</button><span></span><button type="button">☷</button><button type="button">☰</button><button type="button">↗</button></div>
+                <textarea id="message" rows="10">Здравствуйте, {{name}}!
+
+Хотим поделиться с вами новостью: для вас доступно специальное предложение.
+
+Будем рады ответить на ваши вопросы и обсудить детали.</textarea>
+              </div>
+              <div class="editor-footer"><span>Переменные: <button type="button" data-variable="{{name}}">{{name}}</button><button type="button" data-variable="{{email}}">{{email}}</button></span><button type="button" class="rewrite-button" id="rewrite-button">✦ Переформулировать с AI</button></div>
+            </div>
+
+            <div class="card-section delivery-section">
+              <div class="section-heading"><span class="step">3</span><div><h2>Отправка</h2><p>Выберите, когда письмо уйдёт получателям.</p></div></div>
+              <div class="delivery-options"><label class="delivery-option selected"><input type="radio" name="delivery" checked /><span class="radio"></span><span><b>Отправить сейчас</b><small>Рассылка начнётся сразу после запуска.</small></span></label><label class="delivery-option"><input type="radio" name="delivery" /><span class="radio"></span><span><b>Запланировать</b><small>Выберите дату и время отправки.</small></span></label></div>
+            </div>
+            <footer class="form-footer"><p><span>✓</span> Рассылка будет отправлена в безопасном режиме</p><div><button class="preview-button" type="button" id="preview-button">Предпросмотр</button><button class="send-button" type="submit">Отправить <span id="send-count">4</span> письма <b>→</b></button></div></footer>
+          </form>
+
+          <aside class="preview-panel" aria-label="Предпросмотр письма">
+            <div class="preview-heading"><div><p>ПРЕДПРОСМОТР</p><h2>Так увидит получатель</h2></div><button id="refresh-preview" aria-label="Обновить предпросмотр">↻</button></div>
+            <div class="email-preview">
+              <div class="email-meta"><span class="avatar">AM</span><div><p>От: <b>Анна Мартынова</b> &lt;anna@company.ru&gt;</p><p>Кому: <b>alex@example.com</b></p></div><time>сейчас</time></div>
+              <hr />
+              <h3 id="preview-subject">Специальное предложение для вас</h3>
+              <div id="preview-message" class="preview-message"></div>
+              <div class="preview-signature"><div></div><p>С уважением,<br /><b>Анна Мартынова</b><br /><span>Менеджер по работе с клиентами</span></p></div>
+            </div>
+            <div class="tips"><span>✦</span><p><b>Совет:</b> персонализированные письма получают на 26% больше ответов.</p></div>
+          </aside>
+        </div>
+      </main>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
