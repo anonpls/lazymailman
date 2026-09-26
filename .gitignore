@@ -1,4 +1,6 @@
 __pycache__/
+venv/
+logs/
 *.py[cod]
 .env
 emails.txt
