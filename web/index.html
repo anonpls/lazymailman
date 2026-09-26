@@ -55,9 +55,9 @@
               <label class="field-label" for="recipient-input">Кому</label>
               <div class="recipient-box" id="recipient-box">
                 <div class="chips" id="recipient-chips"></div>
-                <input id="recipient-input" type="email" inputmode="email" placeholder="Введите email и нажмите Enter" aria-label="Добавить получателя" />
+                <textarea id="recipient-input" rows="4" placeholder="Вставьте email через запятую или с новой строки" aria-label="Список получателей"></textarea>
               </div>
-              <div class="recipient-footer"><button type="button" class="text-button" id="import-button">↥ Импортировать из файла</button><span><b id="recipient-count">4</b> получателя</span></div>
+              <div class="recipient-footer"><button type="button" class="text-button" id="import-button">↥ Импортировать из файла</button><span><b id="recipient-count">0</b> получателей</span></div>
               <input class="visually-hidden" type="file" id="file-input" accept=".txt,.csv" />
             </div>
 
@@ -78,10 +78,10 @@
             </div>
 
             <div class="card-section delivery-section">
-              <div class="section-heading"><span class="step">3</span><div><h2>Отправка</h2><p>Выберите, когда письмо уйдёт получателям.</p></div></div>
-              <div class="delivery-options"><label class="delivery-option selected"><input type="radio" name="delivery" checked /><span class="radio"></span><span><b>Отправить сейчас</b><small>Рассылка начнётся сразу после запуска.</small></span></label><label class="delivery-option"><input type="radio" name="delivery" /><span class="radio"></span><span><b>Запланировать</b><small>Выберите дату и время отправки.</small></span></label></div>
+              <div class="section-heading"><span class="step">3</span><div><h2>Параметры отправки</h2><p>Настройки применяются к этой рассылке.</p></div></div>
+              <div class="settings-grid"><label>Отправитель<select id="sender"></select></label><label>Задержка, сек<input id="delay" type="number" min="0" step="0.25" value="0" /></label><label>Начало окна<input id="active-from" type="time" /></label><label>Конец окна<input id="active-to" type="time" /></label><label class="rewrite-toggle"><input id="rewrite" type="checkbox" /> Переформулировать каждое письмо с AI</label></div>
             </div>
-            <footer class="form-footer"><p><span>✓</span> Рассылка будет отправлена в безопасном режиме</p><div><button class="preview-button" type="button" id="preview-button">Предпросмотр</button><button class="send-button" type="submit">Отправить <span id="send-count">4</span> письма <b>→</b></button></div></footer>
+            <footer class="form-footer"><p><span>✓</span> SMTP-данные остаются на сервере</p><div><button class="preview-button" type="button" id="preview-button">Предпросмотр</button><button class="stop-button" type="button" id="stop-button" disabled>Стоп</button><button class="send-button" type="submit">Старт <span id="send-count">0</span> писем <b>→</b></button></div></footer>
           </form>
 
           <aside class="preview-panel" aria-label="Предпросмотр письма">
@@ -93,12 +93,12 @@
               <div id="preview-message" class="preview-message"></div>
               <div class="preview-signature"><div></div><p>С уважением,<br /><b>Анна Мартынова</b><br /><span>Менеджер по работе с клиентами</span></p></div>
             </div>
-            <div class="tips"><span>✦</span><p><b>Совет:</b> персонализированные письма получают на 26% больше ответов.</p></div>
+            <div class="status-card"><p><b id="status-label">Готово к запуску</b><span id="status-progress">0 / 0</span></p><div class="progress"><i id="progress-bar"></i></div><pre id="mail-log">Войдите, чтобы начать работу.</pre></div>
           </aside>
         </div>
       </main>
     </div>
-    <div class="toast" id="toast" role="status"></div>
+    <div class="login-modal" id="login-modal"><form id="login-form"><span class="brand-mark">✦</span><h2>Вход в Lazy Mailman</h2><p>Введите пароль администратора сервиса.</p><input id="login-password" type="password" autocomplete="current-password" placeholder="Пароль" required /><button class="send-button">Войти</button><small id="login-error"></small></form></div><div class="toast" id="toast" role="status"></div>
     <script src="app.js"></script>
   </body>
 </html>

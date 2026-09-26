@@ -1,0 +1,4 @@
+Flask>=3.0,<4.0
+
+# Production WSGI server (optional, recommended behind Nginx)
+gunicorn>=21.2,<24

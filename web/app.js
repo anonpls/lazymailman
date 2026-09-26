@@ -1,116 +1,52 @@
-const recipients = ["alex@example.com", "maria@studio.ru", "hello@north.co", "team@orbit.io"];
-const input = document.querySelector("#recipient-input");
-const chips = document.querySelector("#recipient-chips");
-const count = document.querySelector("#recipient-count");
-const sidebarCount = document.querySelector("#sidebar-count");
-const sendCount = document.querySelector("#send-count");
-const subject = document.querySelector("#subject");
-const message = document.querySelector("#message");
-const previewSubject = document.querySelector("#preview-subject");
-const previewMessage = document.querySelector("#preview-message");
-const charCount = document.querySelector("#character-count");
-const toast = document.querySelector("#toast");
+const $ = (selector) => document.querySelector(selector);
+const recipientsInput = $("#recipient-input");
+let recipients = [];
+let polling;
 
-function showToast(text) {
-  toast.textContent = text;
-  toast.classList.add("visible");
-  window.setTimeout(() => toast.classList.remove("visible"), 2600);
-}
-
+function toast(text) { const box = $("#toast"); box.textContent = text; box.classList.add("visible"); setTimeout(() => box.classList.remove("visible"), 2600); }
+function parseRecipients(value) { return value.split(/[\s,;]+/).map((item) => item.trim()).filter(Boolean); }
 function renderRecipients() {
-  chips.innerHTML = "";
-  recipients.forEach((email, index) => {
-    const chip = document.createElement("span");
-    chip.className = "chip";
-    chip.innerHTML = `${email}<button type="button" aria-label="Удалить ${email}">×</button>`;
-    chip.querySelector("button").addEventListener("click", () => {
-      recipients.splice(index, 1);
-      renderRecipients();
-    });
-    chips.append(chip);
-  });
-  const label = `${recipients.length}`;
-  count.textContent = label;
-  sidebarCount.textContent = label;
-  sendCount.textContent = label;
+  const parsed = parseRecipients(recipientsInput.value);
+  recipients = [...new Set(parsed)];
+  const chips = $("#recipient-chips");
+  chips.innerHTML = recipients.map((email, index) => `<span class="chip">${email}<button type="button" data-index="${index}" aria-label="Удалить ${email}">×</button></span>`).join("");
+  chips.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => {
+    recipients.splice(Number(button.dataset.index), 1); recipientsInput.value = recipients.join("\n"); renderRecipients();
+  }));
+  const count = recipients.length;
+  $("#recipient-count").textContent = count; $("#sidebar-count").textContent = count; $("#send-count").textContent = count;
 }
-
-function updatePreview() {
-  previewSubject.textContent = subject.value.trim() || "Без темы";
-  previewMessage.textContent = message.value.replaceAll("{{name}}", "Алексей");
-  charCount.textContent = `${message.value.length} символов`;
+function preview() { $("#preview-subject").textContent = $("#subject").value.trim() || "Без темы"; $("#preview-message").textContent = $("#message").value.replaceAll("{{name}}", "Алексей"); $("#character-count").textContent = `${$("#message").value.length} символов`; }
+async function api(path, options = {}) { const response = await fetch(path, {headers: {"Content-Type": "application/json"}, ...options}); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Ошибка сервера"); return data; }
+function showStatus(data) {
+  const state = {idle:"Готово к запуску",running:"Рассылка выполняется",stopped:"Рассылка остановлена",completed:"Рассылка завершена",error:"Ошибка рассылки"}[data.state] || data.state;
+  $("#status-label").textContent = state; $("#status-progress").textContent = `${data.sent + data.failed} / ${data.total}`;
+  $("#progress-bar").style.width = `${data.total ? ((data.sent + data.failed) / data.total) * 100 : 0}%`;
+  $("#mail-log").textContent = data.logs.length ? data.logs.map((line) => `[${line.at}] ${line.message}`).join("\n") : "Событий пока нет.";
+  const running = data.state === "running"; $("#stop-button").disabled = !running; $(".send-button[type=submit]").disabled = running;
+  if (!running && polling) { clearInterval(polling); polling = undefined; }
 }
-
-function addRecipient(value) {
-  const email = value.trim().replace(/[;,]+$/, "");
-  if (!email) return;
-  if (!email.includes("@") || !email.includes(".")) {
-    showToast("Введите корректный email-адрес");
-    return;
-  }
-  if (recipients.includes(email)) {
-    showToast("Этот получатель уже добавлен");
-    return;
-  }
-  recipients.push(email);
-  input.value = "";
-  renderRecipients();
+async function refreshStatus() { try { showStatus(await api("/api/mailing/status")); } catch (_) {} }
+async function login(event) {
+  event.preventDefault(); $("#login-error").textContent = "";
+  try { await api("/api/login", {method:"POST", body:JSON.stringify({password: $("#login-password").value})}); $("#login-modal").classList.add("hidden"); const settings = await api("/api/settings");
+    $("#sender").innerHTML = settings.senders.map((sender) => `<option>${sender}</option>`).join(""); $("#sender").value = settings.default_sender || settings.senders[0]; $("#delay").value = settings.default_delay; $("#active-from").value = settings.active_from; $("#active-to").value = settings.active_to; refreshStatus();
+  } catch (error) { $("#login-error").textContent = error.message; }
 }
-
-input.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" || event.key === ",") {
-    event.preventDefault();
-    addRecipient(input.value);
-  }
-});
-input.addEventListener("blur", () => addRecipient(input.value));
-subject.addEventListener("input", updatePreview);
-message.addEventListener("input", updatePreview);
-
-document.querySelectorAll("[data-variable]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const cursor = message.selectionStart;
-    message.setRangeText(button.dataset.variable, cursor, message.selectionEnd, "end");
-    message.focus();
-    updatePreview();
-  });
-});
-
-document.querySelectorAll("[data-wrap]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const marker = button.dataset.wrap;
-    const start = message.selectionStart;
-    const selected = message.value.slice(start, message.selectionEnd) || "текст";
-    message.setRangeText(`${marker}${selected}${marker}`, start, message.selectionEnd, "end");
-    message.focus();
-    updatePreview();
-  });
-});
-
-document.querySelectorAll(".delivery-option").forEach((option) => {
-  option.addEventListener("click", () => {
-    document.querySelectorAll(".delivery-option").forEach((item) => item.classList.remove("selected"));
-    option.classList.add("selected");
-  });
-});
-
-document.querySelector("#import-button").addEventListener("click", () => document.querySelector("#file-input").click());
-document.querySelector("#file-input").addEventListener("change", async (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-  const text = await file.text();
-  const imported = text.split(/[\s,;]+/).filter((item) => item.includes("@"));
-  imported.forEach((email) => { if (!recipients.includes(email)) recipients.push(email); });
-  renderRecipients();
-  showToast(`Импортировано адресов: ${imported.length}`);
-  event.target.value = "";
-});
-
-document.querySelector("#refresh-preview").addEventListener("click", () => { updatePreview(); showToast("Предпросмотр обновлён"); });
-document.querySelector("#preview-button").addEventListener("click", () => { updatePreview(); document.querySelector(".preview-panel").scrollIntoView({ behavior: "smooth", block: "start" }); });
-document.querySelector("#save-draft").addEventListener("click", () => showToast("Черновик сохранён"));
-document.querySelector("#rewrite-button").addEventListener("click", () => showToast("AI-переформулировка будет доступна после подключения OpenRouter"));
-document.querySelector("#mail-form").addEventListener("submit", (event) => { event.preventDefault(); showToast(`Рассылка для ${recipients.length} получателей готова к запуску`); });
-
-renderRecipients();
-updatePreview();
+$("#login-form").addEventListener("submit", login);
+document.querySelectorAll("[data-variable]").forEach((button) => button.addEventListener("click", () => {
+  const field = $("#message"); field.setRangeText(button.dataset.variable, field.selectionStart, field.selectionEnd, "end"); field.focus(); preview();
+}));
+document.querySelectorAll("[data-wrap]").forEach((button) => button.addEventListener("click", () => {
+  const field = $("#message"), marker = button.dataset.wrap, selected = field.value.slice(field.selectionStart, field.selectionEnd) || "текст";
+  field.setRangeText(`${marker}${selected}${marker}`, field.selectionStart, field.selectionEnd, "end"); field.focus(); preview();
+}));
+recipientsInput.addEventListener("input", renderRecipients); $("#subject").addEventListener("input", preview); $("#message").addEventListener("input", preview);
+$("#import-button").addEventListener("click", () => $("#file-input").click());
+$("#file-input").addEventListener("change", async (event) => { const file = event.target.files[0]; if (!file) return; const imported = await file.text(); recipientsInput.value = `${recipientsInput.value}\n${imported}`.trim(); renderRecipients(); toast("Адреса импортированы"); });
+$("#preview-button").addEventListener("click", () => { preview(); $(".preview-panel").scrollIntoView({behavior:"smooth"}); });
+$("#save-draft").addEventListener("click", () => toast("Черновик остаётся в текущем окне браузера"));
+$("#rewrite-button").addEventListener("click", () => toast("AI-рерайт применяется при отправке, если включён параметр"));
+$("#mail-form").addEventListener("submit", async (event) => { event.preventDefault(); renderRecipients(); try { const status = await api("/api/mailing/start", {method:"POST", body:JSON.stringify({recipients: recipientsInput.value, subject: $("#subject").value, template: $("#message").value, sender: $("#sender").value, delay: $("#delay").value, active_from: $("#active-from").value, active_to: $("#active-to").value, rewrite: $("#rewrite").checked})}); showStatus(status); polling = setInterval(refreshStatus, 900); } catch (error) { toast(error.message); } });
+$("#stop-button").addEventListener("click", async () => { try { showStatus(await api("/api/mailing/stop", {method:"POST"})); } catch (error) { toast(error.message); } });
+renderRecipients(); preview();

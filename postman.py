@@ -62,6 +62,7 @@ def wait_for_active_period(
     active_from: datetime_time | None,
     active_to: datetime_time | None,
     sleep: Callable[[float], None] = time.sleep,
+    should_stop: Callable[[], bool] | None = None,
 ) -> None:
     """Pause mailing until local system time enters the configured activity window."""
     if active_from is None and active_to is None:
@@ -70,7 +71,11 @@ def wait_for_active_period(
     wait_seconds = seconds_until_active_period(datetime.now(), active_from, active_to)
     if wait_seconds > 0:
         print(f"Mailing is outside the active period; waiting {wait_seconds:.0f} seconds")
-        sleep(wait_seconds)
+        remaining = wait_seconds
+        while remaining > 0 and not (should_stop and should_stop()):
+            pause = min(remaining, 0.25)
+            sleep(pause)
+            remaining -= pause
 
 
 def configure_mailing_logger(log_file: str = config.EMAIL_SEND_LOG_FILE) -> logging.Logger:
@@ -128,12 +133,15 @@ def run_mailing(
     sender: str = config.EMAIL_SENDER,
     rewrite_body: Callable[[str, int], str] | None = None,
     delay_seconds: float = config.EMAIL_SEND_DELAY_SECONDS,
+    primary_password: str | None = None,
     fallback_sender: str | None = config.FALLBACK_EMAIL_SENDER,
     fallback_password: str | None = config.FALLBACK_GMAIL_APP_PASSWORD,
     log_file: str = config.EMAIL_SEND_LOG_FILE,
     emails_file: str = config.EMAILS_FILE,
     active_from: str | None = config.MAILING_ACTIVE_FROM,
     active_to: str | None = config.MAILING_ACTIVE_TO,
+    should_stop: Callable[[], bool] | None = None,
+    on_event: Callable[[str, str, str], None] | None = None,
 ) -> None:
     """Send the configured email body to all recipients."""
     if not template:
@@ -148,18 +156,28 @@ def run_mailing(
     recipient_list = list(recipients)
 
     for iteration, recipient in enumerate(recipient_list, start=1):
-        wait_for_active_period(active_from_time, active_to_time)
+        if should_stop and should_stop():
+            break
+        if on_event:
+            on_event("sending", recipient)
+        wait_for_active_period(active_from_time, active_to_time, should_stop=should_stop)
+        if should_stop and should_stop():
+            break
         body = rewrite_body(template, iteration) if rewrite_body else template
-        result = send_email(recipient=recipient, subject=subject, body=body, sender=sender)
+        result = send_email(recipient=recipient, subject=subject, body=body, sender=sender, password=primary_password)
 
         if result.success:
             log_send_result(logger, result, attempt="primary", final=True)
             print(f"Sent email from {sender} to {recipient}")
+            if on_event:
+                on_event("success", recipient)
             remove_recipient(recipient, emails_file)
         else:
             can_use_fallback = bool(fallback_sender and fallback_sender != sender)
             log_send_result(logger, result, attempt="primary", final=not can_use_fallback)
             print(f"Failed to send email from {sender} to {recipient}: {result.error}")
+            if on_event:
+                on_event("failure", recipient, str(result.error or "SMTP error"))
 
             if can_use_fallback:
                 fallback_result = send_email(
@@ -180,4 +198,9 @@ def run_mailing(
                     )
 
         if delay_seconds and iteration < len(recipient_list):
-            time.sleep(delay_seconds)
+            # Check periodically so the web Stop button takes effect during a delay.
+            remaining = delay_seconds
+            while remaining > 0 and not (should_stop and should_stop()):
+                pause = min(remaining, 0.25)
+                time.sleep(pause)
+                remaining -= pause
