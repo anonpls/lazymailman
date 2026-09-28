@@ -1,6 +1,7 @@
 """Flask service for managing Lazy Mailman mailings from the web UI."""
 from __future__ import annotations
 
+import json
 import os
 import secrets
 import threading
@@ -16,6 +17,7 @@ from rewriter import rewrite_email
 
 ROOT = Path(__file__).resolve().parent
 WEB_PASSWORD = os.getenv("WEB_PASSWORD")
+WEB_LOG_FILE = Path(os.getenv("WEB_LOG_FILE", ROOT / "web-mailing.log"))
 
 
 class MailingService:
@@ -24,15 +26,33 @@ class MailingService:
         self.stop_event = threading.Event()
         self.thread: threading.Thread | None = None
         self.status: dict[str, Any] = self._new_status()
+        self.status["logs"] = self._read_logs()
 
     @staticmethod
     def _new_status() -> dict[str, Any]:
         return {"state": "idle", "total": 0, "sent": 0, "failed": 0, "current": None, "logs": []}
 
+    @staticmethod
+    def _read_logs() -> list[dict[str, str]]:
+        if not WEB_LOG_FILE.exists():
+            return []
+        logs: list[dict[str, str]] = []
+        for line in WEB_LOG_FILE.read_text(encoding="utf-8").splitlines():
+            try:
+                entry = json.loads(line)
+                if isinstance(entry.get("at"), str) and isinstance(entry.get("message"), str):
+                    logs.append(entry)
+            except (json.JSONDecodeError, AttributeError):
+                continue
+        return logs
+
     def _log(self, message: str) -> None:
+        entry = {"at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": message}
         with self.lock:
-            self.status["logs"].append({"at": datetime.now().strftime("%H:%M:%S"), "message": message})
-            self.status["logs"] = self.status["logs"][-100:]
+            WEB_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with WEB_LOG_FILE.open("a", encoding="utf-8") as log_file:
+                log_file.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            self.status["logs"].append(entry)
 
     def snapshot(self) -> dict[str, Any]:
         with self.lock:
@@ -66,7 +86,9 @@ class MailingService:
             if self.status["state"] == "running":
                 raise ValueError("Рассылка уже выполняется.")
             self.stop_event.clear()
+            preserved_logs = self.status["logs"]
             self.status = self._new_status()
+            self.status["logs"] = preserved_logs
             self.status.update({"state": "running", "total": len(recipients)})
         self._log(f"Рассылка запущена: получателей {len(recipients)}.")
         self.thread = threading.Thread(
@@ -143,6 +165,12 @@ def create_app() -> Flask:
         return None
 
     @app.get("/")
+    @app.get("/compose")
+    @app.get("/recipients")
+    @app.get("/templates")
+    @app.get("/history")
+    @app.get("/logs")
+    @app.get("/settings")
     def index(): return send_from_directory(ROOT / "web", "index.html")
 
     @app.get("/<path:filename>")
