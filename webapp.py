@@ -166,12 +166,15 @@ def create_app() -> Flask:
 
     @app.get("/")
     @app.get("/compose")
+    def compose(): return send_from_directory(ROOT / "web", "index.html")
+
     @app.get("/recipients")
     @app.get("/templates")
     @app.get("/history")
     @app.get("/logs")
     @app.get("/settings")
-    def index(): return send_from_directory(ROOT / "web", "index.html")
+    def page():
+        return send_from_directory(ROOT / "web", f"{request.path.removeprefix('/')}.html")
 
     @app.get("/<path:filename>")
     def assets(filename: str): return send_from_directory(ROOT / "web", filename)

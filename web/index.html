@@ -28,7 +28,7 @@
       </aside>
 
       <main>
-        <section class="page-view" data-view="compose">
+        <section class="page-view active" data-view="compose">
           <section class="page-heading"><div><p class="eyebrow">НОВАЯ КАМПАНИЯ</p><h1>Создайте рассылку</h1><p class="subheading">Настройте письмо, выберите получателей — и мы позаботимся об остальном.</p></div><button class="draft-button" id="save-draft"><span>♡</span> Сохранить черновик</button></section>
           <div class="workspace">
             <form class="composer-card" id="mail-form">
@@ -41,11 +41,6 @@
           </div>
         </section>
 
-        <section class="page-view simple-page" data-view="recipients"><p class="eyebrow">АУДИТОРИЯ</p><h1>Получатели</h1><p class="subheading">Управляйте списками адресатов для будущих рассылок.</p><div class="info-card"><h2>Список получателей</h2><p>Добавляйте адреса и импортируйте файлы на странице новой рассылки. Перед запуском система проверит формат email и удалит дубликаты.</p><a class="send-button" href="/compose">Перейти к рассылке</a></div></section>
-        <section class="page-view simple-page" data-view="templates"><p class="eyebrow">СООБЩЕНИЯ</p><h1>Шаблоны</h1><p class="subheading">Здесь будут храниться заготовки писем для повторного использования.</p><div class="info-card"><h2>Шаблонов пока нет</h2><p>Создайте письмо на странице новой рассылки и сохраните его как черновик.</p><a class="send-button" href="/compose">Создать рассылку</a></div></section>
-        <section class="page-view simple-page" data-view="history"><p class="eyebrow">КАМПАНИИ</p><h1>История рассылок</h1><p class="subheading">Следите за результатами отправленных кампаний.</p><div class="info-card"><h2>Журнал событий</h2><p>Все события отправки доступны на отдельной странице логов и сохраняются после перезапуска сервиса.</p><a class="send-button" href="/logs">Открыть логи</a></div></section>
-        <section class="page-view simple-page" data-view="settings"><p class="eyebrow">СЕРВИС</p><h1>Настройки</h1><p class="subheading">Параметры SMTP и отправителей задаются на сервере через файл окружения.</p><div class="info-card"><h2>Настройки отправки</h2><p>Выберите отправителя, задержку и окно отправки при создании новой рассылки. Конфиденциальные SMTP-данные остаются на сервере.</p><a class="send-button" href="/compose">Открыть параметры</a></div></section>
-        <section class="page-view simple-page logs-page" data-view="logs"><p class="eyebrow">СИСТЕМНЫЙ ЖУРНАЛ</p><h1>Логи</h1><p class="subheading">Полная история событий сохраняется на сервере и не исчезает после перезапуска сайта.</p><div class="info-card"><div class="log-page-heading"><h2>Все события</h2><button class="preview-button" id="refresh-logs">Обновить</button></div><pre id="full-mail-log">Загрузка логов…</pre></div></section>
       </main>
     </div>
     <div class="login-modal" id="login-modal"><form id="login-form"><span class="brand-mark">✦</span><h2>Вход</h2><p>Введите пароль администратора сервиса.</p><input id="login-password" type="password" autocomplete="current-password" placeholder="Пароль" required /><button class="send-button">Войти</button><small id="login-error"></small></form></div><div class="toast" id="toast" role="status"></div>

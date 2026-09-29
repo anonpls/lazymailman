@@ -45,10 +45,19 @@ class WebAppTests(unittest.TestCase):
     def test_parse_recipients_removes_duplicates(self):
         self.assertEqual(webapp.parse_recipients("a@example.com, a@example.com\nb@test.ru"), ["a@example.com", "b@test.ru"])
 
-    def test_navigation_pages_return_the_application(self):
-        for path in ("/compose", "/recipients", "/templates", "/history", "/logs", "/settings"):
+    def test_navigation_pages_are_distinct_documents(self):
+        expected_headings = {
+            "/compose": "Создайте рассылку",
+            "/recipients": "Получатели",
+            "/templates": "Шаблоны",
+            "/history": "История рассылок",
+            "/logs": "СИСТЕМНЫЙ ЖУРНАЛ",
+            "/settings": "Настройки",
+        }
+        for path, heading in expected_headings.items():
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200, path)
+            self.assertIn(heading, response.get_data(as_text=True))
             response.close()
 
     def test_logs_are_restored_after_service_restart(self):

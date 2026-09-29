@@ -17,7 +17,7 @@ async function api(path, options = {}) { const response = await fetch(path, {hea
 function showStatus(data) {
   const state = {idle:"Готово к запуску",running:"Рассылка выполняется",stopped:"Рассылка остановлена",completed:"Рассылка завершена",error:"Ошибка рассылки"}[data.state] || data.state;
   $("#status-label").textContent = state; $("#status-progress").textContent = `${data.sent + data.failed} / ${data.total}`; $("#progress-bar").style.width = `${data.total ? ((data.sent + data.failed) / data.total) * 100 : 0}%`;
-  $("#mail-log").textContent = logText(data.logs); $("#full-mail-log").textContent = logText(data.logs);
+  $("#mail-log").textContent = logText(data.logs);
   const running = data.state === "running"; $("#stop-button").disabled = !running; $(".send-button[type=submit]").disabled = running;
   if (!running && polling) { clearInterval(polling); polling = undefined; }
 }
