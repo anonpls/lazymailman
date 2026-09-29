@@ -22,6 +22,7 @@ function showStatus(data) {
   if (!running && polling) { clearInterval(polling); polling = undefined; }
 }
 async function refreshStatus() { try { showStatus(await api("/api/mailing/status")); } catch (_) {} }
+function showPage() { const page = location.pathname.split("/").filter(Boolean)[0] || "compose"; document.querySelectorAll("[data-view]").forEach((view) => view.classList.toggle("active", view.dataset.view === page)); document.querySelectorAll("[data-page]").forEach((item) => item.classList.toggle("active", item.dataset.page === page)); document.title = `${document.querySelector(`[data-view="${page}"] h1`)?.textContent || "Рассылка"}`; }
 async function login(event) {
   event.preventDefault(); $("#login-error").textContent = "";
   try { await api("/api/login", {method:"POST", body:JSON.stringify({password: $("#login-password").value})}); $("#login-modal").classList.add("hidden"); const settings = await api("/api/settings");
@@ -36,4 +37,4 @@ $("#import-button").addEventListener("click", () => $("#file-input").click()); $
 $("#preview-button").addEventListener("click", () => { preview(); $(".preview-panel").scrollIntoView({behavior:"smooth"}); }); $("#save-draft").addEventListener("click", () => toast("Черновик остаётся в текущем окне браузера")); $("#rewrite-button").addEventListener("click", () => toast("AI-рерайт применяется при отправке, если включён параметр"));
 $("#mail-form").addEventListener("submit", async (event) => { event.preventDefault(); renderRecipients(); try { const status = await api("/api/mailing/start", {method:"POST", body:JSON.stringify({recipients: recipientsInput.value, subject: $("#subject").value, template: $("#message").value, sender: $("#sender").value, delay: $("#delay").value, active_from: $("#active-from").value, active_to: $("#active-to").value, rewrite: $("#rewrite").checked})}); showStatus(status); polling = setInterval(refreshStatus, 900); } catch (error) { toast(error.message); } });
 $("#stop-button").addEventListener("click", async () => { try { showStatus(await api("/api/mailing/stop", {method:"POST"})); } catch (error) { toast(error.message); } });
-renderRecipients(); preview();
+showPage(); renderRecipients(); preview();
