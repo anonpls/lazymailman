@@ -27,3 +27,15 @@ $("#login-form").addEventListener("submit", async (event) => {
   } catch (error) { $("#login-error").textContent = error.message; }
 });
 $("#refresh-logs")?.addEventListener("click", refreshLogs);
+
+async function initializeAuth() {
+  const modal = $("#login-modal");
+  modal.classList.add("hidden");
+  try {
+    const status = await api("/api/auth-status");
+    if (status.authenticated) refreshLogs();
+    else modal.classList.remove("hidden");
+  } catch (error) { $("#login-error").textContent = error.message; modal.classList.remove("hidden"); }
+}
+
+initializeAuth();

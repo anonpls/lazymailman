@@ -25,9 +25,21 @@ async function refreshStatus() { try { showStatus(await api("/api/mailing/status
 function showPage() { const page = location.pathname.split("/").filter(Boolean)[0] || "compose"; document.querySelectorAll("[data-view]").forEach((view) => view.classList.toggle("active", view.dataset.view === page)); document.querySelectorAll("[data-page]").forEach((item) => item.classList.toggle("active", item.dataset.page === page)); document.title = `${document.querySelector(`[data-view="${page}"] h1`)?.textContent || "Рассылка"}`; }
 async function login(event) {
   event.preventDefault(); $("#login-error").textContent = "";
-  try { await api("/api/login", {method:"POST", body:JSON.stringify({password: $("#login-password").value})}); $("#login-modal").classList.add("hidden"); const settings = await api("/api/settings");
-    $("#sender").innerHTML = settings.senders.map((sender) => `<option>${sender}</option>`).join(""); $("#sender").value = settings.default_sender || settings.senders[0]; $("#delay").value = settings.default_delay; $("#active-from").value = settings.active_from; $("#active-to").value = settings.active_to; refreshStatus();
+  try { await api("/api/login", {method:"POST", body:JSON.stringify({password: $("#login-password").value})}); $("#login-modal").classList.add("hidden"); await loadAuthenticatedPage();
   } catch (error) { $("#login-error").textContent = error.message; }
+}
+async function loadAuthenticatedPage() {
+  const settings = await api("/api/settings");
+  $("#sender").innerHTML = settings.senders.map((sender) => `<option>${sender}</option>`).join(""); $("#sender").value = settings.default_sender || settings.senders[0]; $("#delay").value = settings.default_delay; $("#active-from").value = settings.active_from; $("#active-to").value = settings.active_to; refreshStatus();
+}
+async function initializeAuth() {
+  const modal = $("#login-modal");
+  modal.classList.add("hidden");
+  try {
+    const status = await api("/api/auth-status");
+    if (status.authenticated) await loadAuthenticatedPage();
+    else modal.classList.remove("hidden");
+  } catch (error) { $("#login-error").textContent = error.message; modal.classList.remove("hidden"); }
 }
 $("#login-form").addEventListener("submit", login);
 document.querySelectorAll("[data-variable]").forEach((button) => button.addEventListener("click", () => { const field = $("#message"); field.setRangeText(button.dataset.variable, field.selectionStart, field.selectionEnd, "end"); field.focus(); preview(); }));
@@ -38,3 +50,4 @@ $("#preview-button").addEventListener("click", () => { preview(); $(".preview-pa
 $("#mail-form").addEventListener("submit", async (event) => { event.preventDefault(); renderRecipients(); try { const status = await api("/api/mailing/start", {method:"POST", body:JSON.stringify({recipients: recipientsInput.value, subject: $("#subject").value, template: $("#message").value, sender: $("#sender").value, delay: $("#delay").value, active_from: $("#active-from").value, active_to: $("#active-to").value, rewrite: $("#rewrite").checked})}); showStatus(status); polling = setInterval(refreshStatus, 900); } catch (error) { toast(error.message); } });
 $("#stop-button").addEventListener("click", async () => { try { showStatus(await api("/api/mailing/stop", {method:"POST"})); } catch (error) { toast(error.message); } });
 showPage(); renderRecipients(); preview();
+initializeAuth();

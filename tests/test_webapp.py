@@ -36,6 +36,11 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(self.login().status_code, 200)
         self.assertEqual(self.client.get("/api/settings").status_code, 200)
 
+    def test_auth_status_tracks_session(self):
+        self.assertFalse(self.client.get("/api/auth-status").get_json()["authenticated"])
+        self.assertEqual(self.login().status_code, 200)
+        self.assertTrue(self.client.get("/api/auth-status").get_json()["authenticated"])
+
     def test_start_validates_mailing(self):
         self.login()
         response = self.client.post("/api/mailing/start", json={})
