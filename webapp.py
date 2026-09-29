@@ -190,6 +190,9 @@ def create_app() -> Flask:
     @app.post("/api/logout")
     def logout(): session.clear(); return jsonify({"ok": True})
 
+    @app.get("/api/auth-status")
+    def auth_status(): return jsonify({"authenticated": authorized()})
+
     @app.get("/api/settings")
     def settings():
         denied = protected()
