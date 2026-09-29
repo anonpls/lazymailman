@@ -5,11 +5,11 @@ import json
 import os
 import secrets
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, jsonify, request, send_from_directory, session
+from flask import Flask, jsonify, redirect, request, send_from_directory, session, url_for
 
 import config
 from postman import run_mailing
@@ -156,17 +156,69 @@ def available_senders() -> list[str]:
 
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=None)
-    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY") or secrets.token_urlsafe(32)
-    app.config["SERVICE"] = MailingService()
 
-    def authorized() -> bool: return session.get("mailman_authenticated", False)
+    secret_key = os.getenv("FLASK_SECRET_KEY")
+    if not secret_key:
+        raise RuntimeError(
+            "FLASK_SECRET_KEY не настроен. Добавьте постоянный случайный ключ в .env "
+            "(например: python -c \"import secrets; print(secrets.token_urlsafe(48))\")."
+        )
+
+    app.config.update(
+        SECRET_KEY=secret_key,
+        SERVICE=MailingService(),
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "").lower() in {"1", "true", "yes"},
+        PERMANENT_SESSION_LIFETIME=timedelta(days=7),
+    )
+
+    def authorized() -> bool:
+        return bool(session.get("mailman_authenticated"))
+
     def protected():
-        if not authorized(): return jsonify({"error": "Требуется вход."}), 401
+        if not authorized():
+            return jsonify({"error": "Требуется вход."}), 401
         return None
+
+    public_paths = {
+        "/login",
+        "/login.html",
+        "/api/login",
+        "/api/logout",
+        "/api/auth-status",
+        "/styles.css",
+        "/login.js",
+    }
+
+    @app.before_request
+    def require_authentication():
+        if request.path in public_paths or authorized():
+            return None
+
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "Требуется вход."}), 401
+
+        next_path = request.full_path.rstrip("?")
+        return redirect(url_for("login_page", next=next_path))
+
+    @app.after_request
+    def disable_sensitive_caching(response):
+        if request.path.startswith("/api/") or response.mimetype == "text/html":
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.get("/login.html")
+    @app.get("/login")
+    def login_page():
+        if authorized():
+            return redirect("/")
+        return send_from_directory(ROOT / "web", "login.html")
 
     @app.get("/")
     @app.get("/compose")
-    def compose(): return send_from_directory(ROOT / "web", "index.html")
+    def compose():
+        return send_from_directory(ROOT / "web", "index.html")
 
     @app.get("/recipients")
     @app.get("/templates")
@@ -177,21 +229,28 @@ def create_app() -> Flask:
         return send_from_directory(ROOT / "web", f"{request.path.removeprefix('/')}.html")
 
     @app.get("/<path:filename>")
-    def assets(filename: str): return send_from_directory(ROOT / "web", filename)
+    def assets(filename: str):
+        return send_from_directory(ROOT / "web", filename)
 
     @app.post("/api/login")
     def login():
         password = (request.get_json(silent=True) or {}).get("password", "")
         if not WEB_PASSWORD or not secrets.compare_digest(str(password), WEB_PASSWORD):
             return jsonify({"error": "Неверный пароль или WEB_PASSWORD не настроен."}), 401
+
+        session.clear()
+        session.permanent = True
         session["mailman_authenticated"] = True
         return jsonify({"ok": True})
 
     @app.post("/api/logout")
-    def logout(): session.clear(); return jsonify({"ok": True})
+    def logout():
+        session.clear()
+        return jsonify({"ok": True})
 
     @app.get("/api/auth-status")
-    def auth_status(): return jsonify({"authenticated": authorized()})
+    def auth_status():
+        return jsonify({"authenticated": authorized()})
 
     @app.get("/api/settings")
     def settings():

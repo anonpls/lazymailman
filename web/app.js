@@ -13,7 +13,17 @@ function renderRecipients() {
   $("#recipient-count").textContent = recipients.length; $("#sidebar-count").textContent = recipients.length; $("#send-count").textContent = recipients.length;
 }
 function preview() { $("#preview-subject").textContent = $("#subject").value.trim() || "Без темы"; $("#preview-message").textContent = $("#message").value.replaceAll("{{name}}", "Алексей"); $("#character-count").textContent = `${$("#message").value.length} символов`; }
-async function api(path, options = {}) { const response = await fetch(path, {credentials: "same-origin", headers: {"Content-Type": "application/json"}, ...options}); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Ошибка сервера"); return data; }
+async function api(path, options = {}) {
+  const response = await fetch(path, {credentials: "same-origin", headers: {"Content-Type": "application/json"}, ...options});
+  const data = await response.json();
+  if (response.status === 401) {
+    const next = `${location.pathname}${location.search}`;
+    location.href = `/login?next=${encodeURIComponent(next)}`;
+    throw new Error(data.error || "Требуется вход.");
+  }
+  if (!response.ok) throw new Error(data.error || "Ошибка сервера");
+  return data;
+}
 function showStatus(data) {
   const state = {idle:"Готово к запуску",running:"Рассылка выполняется",stopped:"Рассылка остановлена",completed:"Рассылка завершена",error:"Ошибка рассылки"}[data.state] || data.state;
   $("#status-label").textContent = state; $("#status-progress").textContent = `${data.sent + data.failed} / ${data.total}`; $("#progress-bar").style.width = `${data.total ? ((data.sent + data.failed) / data.total) * 100 : 0}%`;
@@ -23,23 +33,10 @@ function showStatus(data) {
 }
 async function refreshStatus() { try { showStatus(await api("/api/mailing/status")); } catch (_) {} }
 function showPage() { const page = location.pathname.split("/").filter(Boolean)[0] || "compose"; document.querySelectorAll("[data-view]").forEach((view) => view.classList.toggle("active", view.dataset.view === page)); document.querySelectorAll("[data-page]").forEach((item) => item.classList.toggle("active", item.dataset.page === page)); document.title = `${document.querySelector(`[data-view="${page}"] h1`)?.textContent || "Рассылка"}`; }
-async function login(event) {
-  event.preventDefault(); $("#login-error").textContent = "";
-  try { await api("/api/login", {method:"POST", body:JSON.stringify({password: $("#login-password").value})}); $("#login-modal").classList.add("hidden"); await loadAuthenticatedPage();
-  } catch (error) { $("#login-error").textContent = error.message; }
-}
 async function loadAuthenticatedPage() {
   const settings = await api("/api/settings");
   $("#sender").innerHTML = settings.senders.map((sender) => `<option>${sender}</option>`).join(""); $("#sender").value = settings.default_sender || settings.senders[0]; $("#delay").value = settings.default_delay; $("#active-from").value = settings.active_from; $("#active-to").value = settings.active_to; refreshStatus();
 }
-async function initializeAuth() {
-  const modal = $("#login-modal");
-  modal.classList.add("hidden");
-  try {
-    await loadAuthenticatedPage();
-  } catch (error) { $("#login-error").textContent = error.message; modal.classList.remove("hidden"); }
-}
-$("#login-form").addEventListener("submit", login);
 document.querySelectorAll("[data-variable]").forEach((button) => button.addEventListener("click", () => { const field = $("#message"); field.setRangeText(button.dataset.variable, field.selectionStart, field.selectionEnd, "end"); field.focus(); preview(); }));
 document.querySelectorAll("[data-wrap]").forEach((button) => button.addEventListener("click", () => { const field = $("#message"), marker = button.dataset.wrap, selected = field.value.slice(field.selectionStart, field.selectionEnd) || "текст"; field.setRangeText(`${marker}${selected}${marker}`, field.selectionStart, field.selectionEnd, "end"); field.focus(); preview(); }));
 recipientsInput.addEventListener("input", renderRecipients); $("#subject").addEventListener("input", preview); $("#message").addEventListener("input", preview); $("#refresh-preview").addEventListener("click", preview); $("#refresh-logs").addEventListener("click", refreshStatus);
@@ -48,4 +45,4 @@ $("#preview-button").addEventListener("click", () => { preview(); $(".preview-pa
 $("#mail-form").addEventListener("submit", async (event) => { event.preventDefault(); renderRecipients(); try { const status = await api("/api/mailing/start", {method:"POST", body:JSON.stringify({recipients: recipientsInput.value, subject: $("#subject").value, template: $("#message").value, sender: $("#sender").value, delay: $("#delay").value, active_from: $("#active-from").value, active_to: $("#active-to").value, rewrite: $("#rewrite").checked})}); showStatus(status); polling = setInterval(refreshStatus, 900); } catch (error) { toast(error.message); } });
 $("#stop-button").addEventListener("click", async () => { try { showStatus(await api("/api/mailing/stop", {method:"POST"})); } catch (error) { toast(error.message); } });
 showPage(); renderRecipients(); preview();
-initializeAuth();
+loadAuthenticatedPage().catch(() => {});

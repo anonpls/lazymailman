@@ -32,13 +32,30 @@ class WebAppTests(unittest.TestCase):
     def test_requires_login(self):
         self.assertEqual(self.client.get("/api/mailing/status").status_code, 401)
 
-    def test_login_and_settings(self):
-        self.assertEqual(self.login().status_code, 200)
-        for path in ("/", "/compose"):
+    def test_html_pages_redirect_to_login_before_auth(self):
+        for path in ("/", "/compose", "/logs", "/settings"):
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 302, path)
+            self.assertIn("/login?next=", response.headers["Location"])
+
+    def test_login_persists_across_html_navigation(self):
+        response = self.login()
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Expires=", response.headers.get("Set-Cookie", ""))
+
+        for path in ("/", "/compose", "/recipients", "/templates", "/history", "/logs", "/settings"):
             page = self.client.get(path)
-            self.assertEqual(page.status_code, 200)
+            self.assertEqual(page.status_code, 200, path)
             page.close()
-            self.assertEqual(self.client.get("/api/settings").status_code, 200)
+
+        self.assertEqual(self.client.get("/api/settings").status_code, 200)
+        self.assertTrue(self.client.get("/api/auth-status").get_json()["authenticated"])
+
+    def test_authenticated_user_does_not_see_login_page(self):
+        self.login()
+        response = self.client.get("/login")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].endswith("/"))
 
     def test_protected_endpoint_requires_login(self):
         self.assertEqual(self.client.get("/api/settings").status_code, 401)
@@ -61,6 +78,7 @@ class WebAppTests(unittest.TestCase):
             "/logs": "СИСТЕМНЫЙ ЖУРНАЛ",
             "/settings": "Настройки",
         }
+        self.login()
         for path, heading in expected_headings.items():
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200, path)
