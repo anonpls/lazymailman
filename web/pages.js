@@ -1,7 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {headers: {"Content-Type": "application/json"}, ...options});
+  const response = await fetch(path, {credentials: "same-origin", headers: {"Content-Type": "application/json"}, ...options});
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Ошибка сервера");
   return data;
@@ -32,9 +32,9 @@ async function initializeAuth() {
   const modal = $("#login-modal");
   modal.classList.add("hidden");
   try {
-    const status = await api("/api/auth-status");
-    if (status.authenticated) refreshLogs();
-    else modal.classList.remove("hidden");
+    const status = await api("/api/mailing/status");
+    const output = $("#full-mail-log");
+    if (output) output.textContent = formatLogs(status.logs);
   } catch (error) { $("#login-error").textContent = error.message; modal.classList.remove("hidden"); }
 }
 

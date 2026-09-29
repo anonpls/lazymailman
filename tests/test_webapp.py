@@ -34,12 +34,14 @@ class WebAppTests(unittest.TestCase):
 
     def test_login_and_settings(self):
         self.assertEqual(self.login().status_code, 200)
-        self.assertEqual(self.client.get("/api/settings").status_code, 200)
+        for path in ("/", "/compose"):
+            page = self.client.get(path)
+            self.assertEqual(page.status_code, 200)
+            page.close()
+            self.assertEqual(self.client.get("/api/settings").status_code, 200)
 
-    def test_auth_status_tracks_session(self):
-        self.assertFalse(self.client.get("/api/auth-status").get_json()["authenticated"])
-        self.assertEqual(self.login().status_code, 200)
-        self.assertTrue(self.client.get("/api/auth-status").get_json()["authenticated"])
+    def test_protected_endpoint_requires_login(self):
+        self.assertEqual(self.client.get("/api/settings").status_code, 401)
 
     def test_start_validates_mailing(self):
         self.login()

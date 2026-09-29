@@ -13,7 +13,7 @@ function renderRecipients() {
   $("#recipient-count").textContent = recipients.length; $("#sidebar-count").textContent = recipients.length; $("#send-count").textContent = recipients.length;
 }
 function preview() { $("#preview-subject").textContent = $("#subject").value.trim() || "Без темы"; $("#preview-message").textContent = $("#message").value.replaceAll("{{name}}", "Алексей"); $("#character-count").textContent = `${$("#message").value.length} символов`; }
-async function api(path, options = {}) { const response = await fetch(path, {headers: {"Content-Type": "application/json"}, ...options}); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Ошибка сервера"); return data; }
+async function api(path, options = {}) { const response = await fetch(path, {credentials: "same-origin", headers: {"Content-Type": "application/json"}, ...options}); const data = await response.json(); if (!response.ok) throw new Error(data.error || "Ошибка сервера"); return data; }
 function showStatus(data) {
   const state = {idle:"Готово к запуску",running:"Рассылка выполняется",stopped:"Рассылка остановлена",completed:"Рассылка завершена",error:"Ошибка рассылки"}[data.state] || data.state;
   $("#status-label").textContent = state; $("#status-progress").textContent = `${data.sent + data.failed} / ${data.total}`; $("#progress-bar").style.width = `${data.total ? ((data.sent + data.failed) / data.total) * 100 : 0}%`;
@@ -36,9 +36,7 @@ async function initializeAuth() {
   const modal = $("#login-modal");
   modal.classList.add("hidden");
   try {
-    const status = await api("/api/auth-status");
-    if (status.authenticated) await loadAuthenticatedPage();
-    else modal.classList.remove("hidden");
+    await loadAuthenticatedPage();
   } catch (error) { $("#login-error").textContent = error.message; modal.classList.remove("hidden"); }
 }
 $("#login-form").addEventListener("submit", login);
