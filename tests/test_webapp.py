@@ -1,5 +1,6 @@
 import importlib.util
 import os
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -90,3 +91,16 @@ class WebAppTests(unittest.TestCase):
         service._log("Проверка постоянного журнала")
         restarted = webapp.MailingService()
         self.assertEqual(restarted.snapshot()["logs"][-1]["message"], "Проверка постоянного журнала")
+
+
+class FrontendContractTests(unittest.TestCase):
+    """An unguarded $("#id") on a missing element throws and aborts the whole script, so
+    loadAuthenticatedPage() never runs (empty sender list, settings not loaded)."""
+
+    WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+
+    def test_app_js_selectors_exist_in_index_html(self):
+        html = (self.WEB_DIR / "index.html").read_text(encoding="utf-8")
+        script = (self.WEB_DIR / "app.js").read_text(encoding="utf-8")
+        for element_id in set(re.findall(r'\$\("#([\w-]+)"\)(?!\?)', script)):
+            self.assertIn(f'id="{element_id}"', html, f"#{element_id} used in app.js is missing in index.html")
