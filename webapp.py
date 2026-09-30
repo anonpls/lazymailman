@@ -47,7 +47,7 @@ class MailingService:
         return logs
 
     def _log(self, message: str) -> None:
-        entry = {"at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "message": message}
+        entry = {"at": config.now().strftime("%Y-%m-%d %H:%M:%S"), "message": message}
         with self.lock:
             WEB_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
             with WEB_LOG_FILE.open("a", encoding="utf-8") as log_file:

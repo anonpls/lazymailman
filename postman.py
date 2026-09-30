@@ -29,7 +29,7 @@ def is_within_active_period(
     active_from: datetime_time | None,
     active_to: datetime_time | None,
 ) -> bool:
-    """Return whether current local system time is inside the configured mailing window."""
+    """Return whether the given app time (see config.now) is inside the configured mailing window."""
     if active_from is None and active_to is None:
         return True
     if active_from is None:
@@ -46,7 +46,7 @@ def seconds_until_active_period(
     active_from: datetime_time | None,
     active_to: datetime_time | None,
 ) -> float:
-    """Return seconds until the next allowed send time using local system time."""
+    """Return seconds until the next allowed send time, given the current app time."""
     if is_within_active_period(now.time(), active_from, active_to):
         return 0
     if active_from is None:
@@ -64,11 +64,11 @@ def wait_for_active_period(
     sleep: Callable[[float], None] = time.sleep,
     should_stop: Callable[[], bool] | None = None,
 ) -> None:
-    """Pause mailing until local system time enters the configured activity window."""
+    """Pause mailing until app time (config.now) enters the configured activity window."""
     if active_from is None and active_to is None:
         return
 
-    wait_seconds = seconds_until_active_period(datetime.now(), active_from, active_to)
+    wait_seconds = seconds_until_active_period(config.now(), active_from, active_to)
     if wait_seconds > 0:
         print(f"Mailing is outside the active period; waiting {wait_seconds:.0f} seconds")
         remaining = wait_seconds
@@ -76,6 +76,16 @@ def wait_for_active_period(
             pause = min(remaining, 0.25)
             sleep(pause)
             remaining -= pause
+
+
+class AppTimeFormatter(logging.Formatter):
+    """Log formatter that stamps records with app time (UTC + TIMEZONE_OFFSET)."""
+
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
+        moment = config.from_timestamp(record.created)
+        if datefmt:
+            return moment.strftime(datefmt)
+        return f"{moment:%Y-%m-%d %H:%M:%S},{int(record.msecs):03d}"
 
 
 def configure_mailing_logger(log_file: str = config.EMAIL_SEND_LOG_FILE) -> logging.Logger:
@@ -95,7 +105,7 @@ def configure_mailing_logger(log_file: str = config.EMAIL_SEND_LOG_FILE) -> logg
 
     file_handler = logging.FileHandler(log_path, encoding="utf-8")
     file_handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+        AppTimeFormatter("%(asctime)s %(levelname)s %(message)s")
     )
     logger.addHandler(file_handler)
     return logger

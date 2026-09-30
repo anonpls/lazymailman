@@ -1,4 +1,6 @@
 import os
+import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -43,6 +45,36 @@ EMAIL_BODY_FILE = os.getenv("EMAIL_BODY_FILE")
 EMAIL_TEXT = os.getenv("EMAIL_TEXT", "")
 MAILING_ACTIVE_FROM = os.getenv("MAILING_ACTIVE_FROM")
 MAILING_ACTIVE_TO = os.getenv("MAILING_ACTIVE_TO")
+
+
+def parse_timezone_offset(value: str | None) -> float | None:
+    """Parse TIMEZONE_OFFSET: hours from UTC, e.g. "3", "+3", "-5" or "5.5". Empty means "not set"."""
+    if value is None or not value.strip():
+        return None
+    try:
+        hours = float(value.strip())
+    except ValueError as exc:
+        raise ValueError(f"TIMEZONE_OFFSET must be a number of hours from UTC, like 3 or -5 (got {value!r})") from exc
+    if not -12 <= hours <= 14:
+        raise ValueError(f"TIMEZONE_OFFSET must be between -12 and 14 hours (got {value!r})")
+    return hours
+
+
+# None -> keep using the system local time (backward compatible); a number -> UTC + that many hours.
+TIMEZONE_OFFSET_HOURS = parse_timezone_offset(os.getenv("TIMEZONE_OFFSET"))
+
+
+def from_timestamp(timestamp: float) -> datetime:
+    """Naive datetime for a Unix timestamp in the app timezone (UTC + TIMEZONE_OFFSET)."""
+    if TIMEZONE_OFFSET_HOURS is None:
+        return datetime.fromtimestamp(timestamp)
+    utc_moment = datetime.fromtimestamp(timestamp, timezone.utc).replace(tzinfo=None)
+    return utc_moment + timedelta(hours=TIMEZONE_OFFSET_HOURS)
+
+
+def now() -> datetime:
+    """Current app time. Use this instead of datetime.now() everywhere in the project."""
+    return from_timestamp(time.time())
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
