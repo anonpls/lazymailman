@@ -45,4 +45,7 @@ $("#preview-button").addEventListener("click", () => { preview(); $(".preview-pa
 $("#mail-form").addEventListener("submit", async (event) => { event.preventDefault(); renderRecipients(); try { const status = await api("/api/mailing/start", {method:"POST", body:JSON.stringify({recipients: recipientsInput.value, subject: $("#subject").value, template: $("#message").value, sender: $("#sender").value, delay: $("#delay").value, active_from: $("#active-from").value, active_to: $("#active-to").value, rewrite: $("#rewrite").checked})}); showStatus(status); polling = setInterval(refreshStatus, 900); } catch (error) { toast(error.message); } });
 $("#stop-button").addEventListener("click", async () => { try { showStatus(await api("/api/mailing/stop", {method:"POST"})); } catch (error) { toast(error.message); } });
 showPage(); renderRecipients(); preview();
-loadAuthenticatedPage().catch(() => {});
+loadAuthenticatedPage().catch((error) => {
+  console.error("Не удалось загрузить настройки:", error);
+  toast(`Не удалось загрузить настройки: ${error.message}`);
+});

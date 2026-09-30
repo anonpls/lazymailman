@@ -204,8 +204,17 @@ def create_app() -> Flask:
 
     @app.after_request
     def disable_sensitive_caching(response):
-        if request.path.startswith("/api/") or response.mimetype == "text/html":
+        # This app serves its frontend directly from Flask. HTML and app-owned
+        # JS/CSS must never be mixed across deployments, otherwise a new HTML
+        # document can execute an old cached app.js.
+        if (
+            request.path.startswith("/api/")
+            or response.mimetype == "text/html"
+            or request.path.endswith((".js", ".css"))
+        ):
             response.headers["Cache-Control"] = "no-store"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
         return response
 
     @app.get("/login.html")
