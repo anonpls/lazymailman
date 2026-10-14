@@ -14,6 +14,7 @@ from flask import Flask, jsonify, redirect, request, send_from_directory, sessio
 import config
 from postman import run_mailing
 from rewriter import rewrite_email
+from personalization import read_table, prepare_rows
 
 ROOT = Path(__file__).resolve().parent
 WEB_PASSWORD = os.getenv("WEB_PASSWORD")
@@ -60,6 +61,9 @@ class MailingService:
 
     def start(self, data: dict[str, Any]) -> None:
         recipients = parse_recipients(data.get("recipients", ""))
+        variables = prepare_rows(data["table_rows"], data.get("variable_columns", [])) if data.get("table_rows") is not None else {}
+        if variables and set(recipients) != set(variables):
+            raise ValueError("Список получателей отличается от импортированной таблицы. Загрузите файл заново.")
         subject = str(data.get("subject", "")).strip()
         template = str(data.get("template", "")).strip()
         if not recipients:
@@ -95,7 +99,7 @@ class MailingService:
             target=self._run,
             kwargs={"recipients": recipients, "subject": subject, "template": template, "sender": sender,
                     "delay": delay, "active_from": active_from, "active_to": active_to,
-                    "rewrite": bool(data.get("rewrite"))},
+                    "rewrite": bool(data.get("rewrite")), "variables": variables},
             daemon=True,
         )
         self.thread.start()
@@ -115,7 +119,7 @@ class MailingService:
                 rewrite_body=rewrite_email if args["rewrite"] else None, delay_seconds=args["delay"],
                 primary_password=(config.FALLBACK_GMAIL_APP_PASSWORD if args["sender"] == config.FALLBACK_EMAIL_SENDER else config.GMAIL_APP_PASSWORD),
                 active_from=args["active_from"], active_to=args["active_to"],
-                should_stop=self.stop_event.is_set, on_event=event,
+                should_stop=self.stop_event.is_set, on_event=event, recipient_variables=args["variables"],
             )
             with self.lock:
                 self.status["state"] = "stopped" if self.stop_event.is_set() else "completed"
@@ -268,6 +272,19 @@ def create_app() -> Flask:
         return jsonify({"senders": available_senders(), "default_sender": config.EMAIL_SENDER,
                         "default_delay": config.EMAIL_SEND_DELAY_SECONDS, "active_from": config.MAILING_ACTIVE_FROM or "",
                         "active_to": config.MAILING_ACTIVE_TO or ""})
+
+    @app.post("/api/import-table")
+    def import_table():
+        denied = protected()
+        if denied: return denied
+        uploaded = request.files.get("file")
+        if not uploaded: return jsonify({"error":"Выберите файл."}), 400
+        if request.content_length and request.content_length > 5 * 1024 * 1024:
+            return jsonify({"error":"Максимальный размер файла — 5 МБ."}), 413
+        try: result = read_table(uploaded.filename or "", uploaded.read(5 * 1024 * 1024 + 1))
+        except (ValueError, UnicodeError, OSError, Exception) as exc:
+            return jsonify({"error":str(exc)}), 400
+        return jsonify(result)
 
     @app.post("/api/mailing/start")
     def start():

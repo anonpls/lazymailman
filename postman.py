@@ -7,6 +7,7 @@ from pathlib import Path
 import config
 from sender import EmailSendResult, send_email
 from config import remove_recipient
+from personalization import render
 
 
 SPAM_CHECK_STATUS = "not_supported_by_smtp"
@@ -152,6 +153,7 @@ def run_mailing(
     active_to: str | None = config.MAILING_ACTIVE_TO,
     should_stop: Callable[[], bool] | None = None,
     on_event: Callable[[str, str, str], None] | None = None,
+    recipient_variables: dict[str, dict[str, str]] | None = None,
 ) -> None:
     """Send the configured email body to all recipients."""
     if not template:
@@ -173,8 +175,11 @@ def run_mailing(
         wait_for_active_period(active_from_time, active_to_time, should_stop=should_stop)
         if should_stop and should_stop():
             break
-        body = rewrite_body(template, iteration) if rewrite_body else template
-        result = send_email(recipient=recipient, subject=subject, body=body, sender=sender, password=primary_password)
+        values = (recipient_variables or {}).get(recipient, {"email": recipient})
+        personalized = render(template, values)
+        body = rewrite_body(personalized, iteration) if rewrite_body else personalized
+        personalized_subject = render(subject, values)
+        result = send_email(recipient=recipient, subject=personalized_subject, body=body, sender=sender, password=primary_password)
 
         if result.success:
             log_send_result(logger, result, attempt="primary", final=True)
